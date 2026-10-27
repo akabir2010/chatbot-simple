@@ -1,122 +1,107 @@
 # Chatbot Deployment Guide
 
-This guide deploys `chatbot.py` as a Streamlit application on Render, Streamlit Community Cloud, or DigitalOcean.
+This guide covers local setup and deployment of `chatbot.py`, a Streamlit app that uses the Groq API.
 
-## Before deploying
+## Requirements
 
-1. Rotate the current `GROQ_API_KEY` if it has ever been committed, uploaded, or shared. API keys must be treated as exposed once they leave your local machine.
-2. Do not commit `.env`, API keys, `.venv`, or local databases.
-3. Push the project to a GitHub repository. The repository should contain at least:
+- Python 3.10 or later
+- A Groq API key
+- GitHub repository containing `chatbot.py` and `requirements.txt` for cloud deployment
 
-```text
-chatbot.py
-requirements.txt
-```
+Never commit API keys, `.env` files, or virtual environments. These are excluded by `.gitignore`. If an API key was committed or shared, revoke it and create a replacement.
 
-The application reads this environment variable:
+## Run locally (Windows PowerShell)
 
-```text
-GROQ_API_KEY
-```
-
-## Test locally
-
-From the project directory:
+From the project directory, create and activate a virtual environment, then install the dependencies:
 
 ```powershell
-& .\.venv\Scripts\Activate.ps1
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+```
+
+Create a local `.env` file from the sample and replace the placeholder with your Groq API key:
+
+```powershell
+Copy-Item .env.sample .env
+```
+
+Then start the app:
+
+```powershell
 streamlit run chatbot.py
 ```
 
-Create `.env` locally only:
+The app loads `GROQ_API_KEY` from `.env` locally. Keep that file on your machine and do not upload it.
 
-```text
-GROQ_API_KEY=your_groq_api_key
-```
+## Deploy to Render
 
-## Deploy on Render
+1. Push the project to GitHub and create a **Web Service** in Render connected to the repository.
+2. Set the service configuration:
 
-1. Open [Render](https://render.com/) and select **New > Web Service**.
-2. Connect the GitHub repository and choose the branch to deploy.
-3. Use these settings:
+   ```text
+   Runtime: Python
+   Build Command: pip install -r requirements.txt
+   Start Command: streamlit run chatbot.py --server.address 0.0.0.0 --server.port $PORT
+   ```
 
-```text
-Runtime: Python 3
-Build Command: pip install -r requirements.txt
-Start Command: streamlit run chatbot.py --server.address 0.0.0.0 --server.port $PORT
-```
+3. Add `GROQ_API_KEY` as a secret environment variable in the Render dashboard.
+4. Deploy the service and open its public URL when the deployment completes.
 
-4. In **Environment > Environment Variables**, add:
+Render provides the port through `$PORT`; the start command must use it and bind to `0.0.0.0`.
 
-```text
-Key: GROQ_API_KEY
-Value: your_groq_api_key
-```
+## Deploy to Streamlit Community Cloud
 
-5. Choose a plan and select **Create Web Service**.
-6. Open the public Render URL after the first deploy finishes.
+1. Push the project to GitHub.
+2. In [Streamlit Community Cloud](https://share.streamlit.io/), create an app and select the repository, branch, and `chatbot.py` as the main file.
+3. In the app's **Settings > Secrets**, add your key:
 
-Render supplies the `$PORT` value. The start command must use that value and bind Streamlit to `0.0.0.0`.
+   ```toml
+   GROQ_API_KEY = "your_groq_api_key"
+   ```
 
-## Deploy on Streamlit Community Cloud
+4. Save the settings and deploy the app.
 
-1. Push `chatbot.py` and `requirements.txt` to GitHub.
-2. Open [Streamlit Community Cloud](https://share.streamlit.io/) and select **Create app**.
-3. Select the repository, branch, and set **Main file path** to:
+Do not add the key to the repository. Configure it through the app's Secrets settings.
 
-```text
-chatbot.py
-```
+## Deploy to DigitalOcean App Platform
 
-4. Before launching, open the app settings **Secrets** section and add:
+1. Create an app in [DigitalOcean App Platform](https://cloud.digitalocean.com/apps) and connect the GitHub repository.
+2. Configure a Python web service with:
 
-```toml
-GROQ_API_KEY = "your_groq_api_key"
-```
+   ```text
+   Build Command: pip install -r requirements.txt
+   Run Command: streamlit run chatbot.py --server.address 0.0.0.0 --server.port $PORT
+   ```
 
-5. Click **Deploy**.
+3. Configure the service's HTTP port to match the port used by the app.
+4. Add `GROQ_API_KEY` as a secret environment variable.
+5. Deploy the app and open its generated URL.
 
-Streamlit Community Cloud injects the secret as an environment variable, so `load_dotenv()` does not need a `.env` file in the deployed repository.
+## Optional: deploy to a DigitalOcean Droplet
 
-## Deploy on DigitalOcean App Platform
-
-1. Open [DigitalOcean](https://cloud.digitalocean.com/) and select **Create > Apps**.
-2. Connect the GitHub repository and select the branch.
-3. Configure the service as a Python web service:
-
-```text
-Build Command: pip install -r requirements.txt
-Run Command: streamlit run chatbot.py --server.address 0.0.0.0 --server.port $PORT
-HTTP Port: 8080
-```
-
-4. In **Environment Variables**, add `GROQ_API_KEY` as a **secret**.
-5. Select **Deploy** and wait for the build to complete.
-6. Use the generated DigitalOcean app URL to open the chatbot.
-
-DigitalOcean App Platform commonly exposes port `8080`; using `$PORT` in the run command lets the platform provide the actual port when needed.
-
-## Optional DigitalOcean Droplet deployment
-
-For a Droplet, install Python and Git, clone the repository, and run:
+On the Droplet, install Python and Git, clone the repository, and run:
 
 ```bash
 sudo apt update
 sudo apt install -y python3-venv git
-cd SidharthGenAI
+cd <repository-directory>
 python3 -m venv .venv
 . .venv/bin/activate
-pip install -r requirements.txt
-export GROQ_API_KEY="your_groq_api_key"
+python -m pip install -r requirements.txt
+```
+
+Set `GROQ_API_KEY` in the process environment without committing it, then start Streamlit:
+
+```bash
 streamlit run chatbot.py --server.address 0.0.0.0 --server.port 8501
 ```
 
-For a production Droplet, run Streamlit behind a reverse proxy such as Nginx and a process manager such as systemd. Do not leave the API key in shell history or commit it to the repository.
+For production, run Streamlit behind a reverse proxy such as Nginx and use a process manager such as systemd. Avoid putting the API key directly in shell commands, where it may be saved in shell history.
 
 ## Troubleshooting
 
-- **Missing `GROQ_API_KEY`:** confirm the variable is configured in the provider's secrets/environment settings, then redeploy.
-- **Application fails to start on Render or DigitalOcean:** confirm the start command uses `--server.address 0.0.0.0` and `--server.port $PORT`.
-- **Dependency installation is slow or fails:** `requirements.txt` contains packages for other RAG examples as well as this chatbot. A smaller production requirements file containing `streamlit`, `python-dotenv`, `langchain-community`, and `langchain-groq` can reduce build time if only `chatbot.py` is deployed.
-- **Changes are not visible:** push the latest commit to the branch selected by the hosting provider and check the deployment logs.
+- **Missing API key:** confirm `GROQ_API_KEY` is configured in the hosting provider's secret or environment-variable settings.
+- **The app cannot be reached:** on Render or DigitalOcean, bind to `0.0.0.0` and use the port configured for the service.
+- **Dependency installation fails:** check the deployment logs and confirm `requirements.txt` is present at the repository root.
+- **Changes do not appear:** confirm the latest changes were pushed to the branch connected to the hosting provider, then review the deployment logs.
