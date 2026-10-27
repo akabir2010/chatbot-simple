@@ -1,6 +1,6 @@
 # Chatbot Simple
 
-A Streamlit chatbot that uses a Groq-hosted language model. The app reads the Groq API key from the `GROQ_API_KEY` environment variable.
+A Streamlit chatbot that uses a Groq-hosted language model. The app reads `GROQ_API_KEY` from a local `.env` file, an environment variable, or Streamlit secrets.
 
 ## Requirements
 
